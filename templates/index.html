@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="hero">
+  <h1>Periksa tautan sebelum diklik</h1>
+  <p class="lead">Tempel sebuah URL. Model machine learning menilai apakah bentuknya mirip tautan phishing, tanpa membuka halamannya.</p>
+  <form method="post" action="{{ url_for('index') }}" class="checkform" novalidate>
+    <input type="text" name="url" placeholder="contoh: https://situs.com/halaman" autocomplete="off" autofocus
+           value="{{ result.input if result else '' }}" aria-label="URL yang ingin diperiksa">
+    <button type="submit">Periksa</button>
+  </form>
+  <p class="hint">Bisa dengan atau tanpa <code>https://</code> dan <code>www</code>. Keduanya diperlakukan sama.</p>
+</section>
+
+{% if result and not result.ok %}
+<section class="card invalid">
+  <h2>Input tidak valid</h2>
+  <p>{{ result.error }}</p>
+  {% if result.input %}<p class="mono muted">{{ result.input }}</p>{% endif %}
+</section>
+{% endif %}
+
+{% if result and result.ok %}
+<section class="card result {{ result.label }}">
+  <div class="result-head">
+    <div>
+      <span class="badge {{ result.label }}">{{ result.label_text }}</span>
+      {% if result.confidence == 'rendah' %}<span class="badge low">Keyakinan rendah</span>{% endif %}
+      <p class="mono url">{{ result.input }}</p>
+    </div>
+    <div class="score">
+      <div class="score-num">{{ result.percent }}%</div>
+      <div class="score-cap">probabilitas phishing</div>
+    </div>
+  </div>
+
+  <div class="meter" aria-hidden="true">
+    <div class="meter-fill" style="width: {{ result.percent }}%"></div>
+    <div class="meter-mark" style="left: {{ (result.threshold * 100)|round(0) }}%"></div>
+  </div>
+  <p class="muted small">Garis menandai ambang keputusan {{ (result.threshold * 100)|round(0)|int }}%. Di atas ambang, URL dianggap phishing.</p>
+
+  {% if result.note %}<p class="note">{{ result.note }}</p>{% endif %}
+
+  <div class="cols">
+    <div>
+      <h3>Ciri yang menambah kecurigaan</h3>
+      {% if result.risk_signals %}
+      <ul class="signals risk">{% for s in result.risk_signals %}<li>{{ s }}</li>{% endfor %}</ul>
+      {% else %}<p class="muted">Tidak ada ciri mencolok dari daftar pemeriksaan.</p>{% endif %}
+    </div>
+    <div>
+      <h3>Ciri yang wajar</h3>
+      {% if result.safe_signals %}
+      <ul class="signals safe">{% for s in result.safe_signals %}<li>{{ s }}</li>{% endfor %}</ul>
+      {% else %}<p class="muted">Tidak ada.</p>{% endif %}
+    </div>
+  </div>
+
+  <h3>Saran tindakan</h3>
+  <ol class="advice">{% for a in result.advice %}<li>{{ a }}</li>{% endfor %}</ol>
+
+  <p class="muted small">Bentuk yang dianalisis model: <span class="mono">{{ result.normalized }}</span></p>
+</section>
+{% endif %}
+
+{% if not result %}
+<section class="grid3">
+  <div class="card mini"><h3>1. Tempel URL</h3><p>Dari email, chat, atau SMS. Tautannya tidak perlu dibuka.</p></div>
+  <div class="card mini"><h3>2. Model menganalisis</h3><p>36 ciri teks URL dihitung: panjang, angka, subdomain, kata mencurigakan, dan lainnya.</p></div>
+  <div class="card mini"><h3>3. Baca hasilnya</h3><p>Label, probabilitas, alasan, dan saran tindakan yang bisa langsung diikuti.</p></div>
+</section>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Cek URL Phishing{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="topbar">
+    <div class="wrap topbar-inner">
+      <a class="brand" href="{{ url_for('index') }}"><span class="brand-mark">◈</span> Cek URL Phishing</a>
+      <nav>
+        <a href="{{ url_for('index') }}" class="{{ 'on' if active == 'index' }}">Cek URL</a>
+        <a href="{{ url_for('batch') }}" class="{{ 'on' if active == 'batch' }}">Cek Banyak</a>
+        <a href="{{ url_for('history') }}" class="{{ 'on' if active == 'history' }}">Riwayat</a>
+        <a href="{{ url_for('model_info') }}" class="{{ 'on' if active == 'model' }}">Info Model</a>
+      </nav>
+    </div>
+  </header>
+  <main class="wrap">
+    {% block content %}{% endblock %}
+  </main>
+  <footer class="wrap foot">
+    UAS Keamanan Data (DSF01) · Kelompok 4 · Hasil berasal dari analisis teks URL saja dan bersifat alat bantu, bukan jaminan keamanan.
+  </footer>
+</body>
+</html>

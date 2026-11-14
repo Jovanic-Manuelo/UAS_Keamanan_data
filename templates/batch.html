@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Cek Banyak URL{% endblock %}
+{% block content %}
+<section class="hero compact">
+  <h1>Cek banyak URL sekaligus</h1>
+  <p class="lead">Satu URL per baris, atau unggah file <code>.csv</code> / <code>.txt</code>. Maksimal {{ max_batch }} URL.</p>
+</section>
+
+<section class="card">
+  <form method="post" action="{{ url_for('batch') }}" enctype="multipart/form-data">
+    <label for="urls">Daftar URL</label>
+    <textarea id="urls" name="urls" rows="7" placeholder="contoh.com/halaman&#10;http://situs-lain.xyz/login.php">{{ text }}</textarea>
+    <div class="row">
+      <div>
+        <label for="file">atau unggah file</label>
+        <input id="file" type="file" name="file" accept=".csv,.txt">
+        <p class="muted small">CSV: memakai kolom bernama <code>url</code>, atau kolom pertama jika tidak ada.</p>
+      </div>
+      <button type="submit">Periksa semua</button>
+    </div>
+  </form>
+</section>
+
+{% if error %}
+<section class="card invalid"><h2>Tidak bisa diproses</h2><p>{{ error }}</p></section>
+{% endif %}
+
+{% if results %}
+<section class="stats">
+  <div class="stat"><b>{{ summary.total }}</b><span>diperiksa</span></div>
+  <div class="stat phishing"><b>{{ summary.phishing }}</b><span>phishing</span></div>
+  <div class="stat legitimate"><b>{{ summary.legitimate }}</b><span>legitimate</span></div>
+  <div class="stat invalid"><b>{{ summary.invalid }}</b><span>tidak valid</span></div>
+</section>
+<section class="card">
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>URL</th><th>Hasil</th><th class="num">Prob. phishing</th><th>Catatan</th></tr></thead>
+    <tbody>
+    {% for r in results %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        <td class="mono cut">{{ r.input }}</td>
+        {% if r.ok %}
+          <td><span class="badge {{ r.label }}">{{ r.label }}</span></td>
+          <td class="num">{{ r.percent }}%</td>
+          <td class="small">{% if r.confidence == 'rendah' %}Keyakinan rendah. {% endif %}{{ r.risk_signals[0] if r.risk_signals else '' }}</td>
+        {% else %}
+          <td><span class="badge invalid">tidak valid</span></td>
+          <td class="num">-</td>
+          <td class="small">{{ r.error }}</td>
+        {% endif %}
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

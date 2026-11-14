@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Riwayat Pengecekan{% endblock %}
+{% block content %}
+<section class="hero compact">
+  <h1>Riwayat pengecekan</h1>
+  <p class="lead">100 pengecekan terakhir sejak aplikasi dijalankan. Riwayat hilang saat aplikasi dimatikan.</p>
+</section>
+
+<section class="card">
+  {% if history %}
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Waktu</th><th>URL</th><th>Hasil</th><th class="num">Prob. phishing</th><th>Keyakinan</th></tr></thead>
+    <tbody>
+    {% for h in history %}
+      <tr>
+        <td>{{ h.time }}</td>
+        <td class="mono cut">{{ h.input }}</td>
+        <td><span class="badge {{ h.label }}">{{ h.label }}</span></td>
+        <td class="num">{{ h.percent }}%</td>
+        <td>{{ h.confidence }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <form method="post" action="{{ url_for('history_clear') }}" class="right">
+    <button type="submit" class="ghost">Hapus riwayat</button>
+  </form>
+  {% else %}
+  <p class="muted">Belum ada pengecekan. Mulai dari halaman <a href="{{ url_for('index') }}">Cek URL</a>.</p>
+  {% endif %}
+</section>
+{% endblock %}

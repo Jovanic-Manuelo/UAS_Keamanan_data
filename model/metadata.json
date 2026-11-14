@@ -1,0 +1,155 @@
+{
+  "model_name": "Random Forest",
+  "threshold": 0.55,
+  "trained_at": "2026-11-14 22:45",
+  "sklearn_version": "1.9.1",
+  "feature_names": [
+    "url_length",
+    "host_length",
+    "path_length",
+    "query_length",
+    "n_dots_host",
+    "n_subdomains",
+    "n_hyphens_host",
+    "n_digits_host",
+    "digit_ratio_host",
+    "longest_host_token",
+    "host_entropy",
+    "path_depth",
+    "n_digits_path",
+    "n_hyphens_path",
+    "n_underscores",
+    "n_percent",
+    "n_equals",
+    "n_ampersand",
+    "n_question",
+    "n_at",
+    "n_tilde",
+    "n_special_total",
+    "path_entropy",
+    "longest_path_token",
+    "has_ip",
+    "has_port",
+    "has_double_slash",
+    "has_php",
+    "has_html",
+    "has_exe",
+    "is_shortener",
+    "is_common_tld",
+    "tld_length",
+    "n_suspicious_words",
+    "brand_outside_domain",
+    "n_query_params"
+  ],
+  "dataset": {
+    "name": "Phishing URL dataset (Mendeley Data)",
+    "doi": "10.17632/vfszbj9b36.1",
+    "url": "https://data.mendeley.com/datasets/vfszbj9b36/1",
+    "n_raw": 450176,
+    "n_clean": 437827,
+    "n_legitimate": 345607,
+    "n_phishing": 92220
+  },
+  "split": {
+    "train": 308191,
+    "val": 60346,
+    "test": 69290,
+    "method": "GroupShuffleSplit per domain (70/15/15)"
+  },
+  "test_metrics": {
+    "accuracy": 0.9177,
+    "precision": 0.7804,
+    "recall": 0.8341,
+    "f1": 0.8063
+  },
+  "confusion_matrix": {
+    "tn": 51715,
+    "fp": 3341,
+    "fn": 2362,
+    "tp": 11872
+  },
+  "validation_comparison": [
+    {
+      "model": "Dummy (kelas terbanyak)",
+      "val_accuracy": 0.7653,
+      "val_precision": 0.0,
+      "val_recall": 0.0,
+      "val_f1": 0.0,
+      "train_f1": 0.0,
+      "waktu_latih_detik": 0.0
+    },
+    {
+      "model": "Logistic Regression",
+      "val_accuracy": 0.8351,
+      "val_precision": 0.6287,
+      "val_recall": 0.7259,
+      "val_f1": 0.6738,
+      "train_f1": 0.7221,
+      "waktu_latih_detik": 1.4
+    },
+    {
+      "model": "Random Forest",
+      "val_accuracy": 0.8939,
+      "val_precision": 0.7469,
+      "val_recall": 0.829,
+      "val_f1": 0.7858,
+      "train_f1": 0.8745,
+      "waktu_latih_detik": 29.5
+    },
+    {
+      "model": "Hist Gradient Boosting",
+      "val_accuracy": 0.8852,
+      "val_precision": 0.7137,
+      "val_recall": 0.8536,
+      "val_f1": 0.7774,
+      "train_f1": 0.8464,
+      "waktu_latih_detik": 11.4
+    }
+  ],
+  "test_comparison": [
+    {
+      "model": "Dummy (kelas terbanyak)",
+      "accuracy": 0.7946,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+    },
+    {
+      "model": "Logistic Regression",
+      "accuracy": 0.8645,
+      "precision": 0.6454,
+      "recall": 0.7556,
+      "f1": 0.6962
+    },
+    {
+      "model": "Random Forest",
+      "accuracy": 0.9177,
+      "precision": 0.7804,
+      "recall": 0.8341,
+      "f1": 0.8063
+    },
+    {
+      "model": "Hist Gradient Boosting",
+      "accuracy": 0.9095,
+      "precision": 0.7304,
+      "recall": 0.8865,
+      "f1": 0.8009
+    }
+  ],
+  "external_test": {
+    "n": 51273,
+    "recall": 0.8069
+  },
+  "top_features": {
+    "is_common_tld": 0.0752,
+    "n_suspicious_words": 0.0641,
+    "has_php": 0.0433,
+    "n_hyphens_path": 0.0414,
+    "longest_path_token": 0.0263,
+    "path_depth": 0.0252,
+    "n_digits_path": 0.0234,
+    "path_entropy": 0.0133,
+    "brand_outside_domain": 0.0126,
+    "path_length": 0.0113
+  }
+}
