@@ -1,0 +1,36 @@
+no,kelompok,input,hasil_diharapkan,hasil_aktual,status,keterangan
+A1,input valid,https://www.wikipedia.org/,legitimate,legitimate,LULUS,prob. phishing 18.3%
+A2,input valid,https://en.wikipedia.org/wiki/Phishing,legitimate,legitimate,LULUS,prob. phishing 5.2%
+A3,input valid,https://www.youtube.com/watch?v=dQw4w9WgXcQ,legitimate,legitimate,LULUS,prob. phishing 0.8%
+A4,input valid,https://stackoverflow.com/questions/231767/what-does-the-yield-keyword-do,legitimate,legitimate,LULUS,prob. phishing 2.3%
+A5,input valid,https://github.com/pallets/flask,legitimate,legitimate,LULUS,prob. phishing 34.6%
+A6,input valid,https://www.kemdikbud.go.id,legitimate,legitimate,LULUS,prob. phishing 10.7%
+A7,input valid,https://www.instagram.com/accounts/login/,legitimate,phishing,GAGAL,prob. phishing 88.2%
+A8,input valid,http://klikbca-verifikasi.xyz/login.php,phishing,phishing,LULUS,prob. phishing 97.7%
+A9,input valid,http://secure-paypal.com.account-update.info/webscr/cmd=_login,phishing,phishing,LULUS,prob. phishing 92.3%
+A10,input valid,http://203.0.113.45/~user/bank/signin.html,phishing,phishing,LULUS,prob. phishing 100.0%
+A11,input valid,http://appleid.apple.com.verify-account.support/login,phishing,phishing,LULUS,prob. phishing 95.9%
+A12,input valid,https://netflix-billing-update.com/account/payment,phishing,phishing,LULUS,prob. phishing 93.7%
+A13,input valid,http://example.com/wp-content/plugins/x/office365/login.php,phishing,phishing,LULUS,prob. phishing 99.1%
+A14,input valid,http://dana-kaget-gratis.top/claim?id=88213,phishing,phishing,LULUS,prob. phishing 57.8%
+B1,tidak valid: kosong,'',ditolak,ditolak,LULUS,Input kosong. Ketik atau tempel sebuah URL.
+B2,tidak valid: hanya spasi,'     ',ditolak,ditolak,LULUS,Input kosong. Ketik atau tempel sebuah URL.
+B3,tidak valid: kalimat biasa,'halo ini bukan url',ditolak,ditolak,LULUS,URL tidak boleh mengandung spasi atau baris baru.
+B4,tidak valid: satu kata tanpa titik,'contoh',ditolak,ditolak,LULUS,Ini tidak terlihat seperti URL. Contoh yang benar: contoh.com/halaman
+B5,tidak valid: skema ftp,'ftp://files.example.com/data.zip',ditolak,ditolak,LULUS,Skema 'ftp://' tidak didukung. Hanya http dan https.
+B6,tidak valid: skema javascript,'javascript:alert(1)',ditolak,ditolak,LULUS,'javascript:' bukan alamat web. Masukkan URL http/https.
+B7,tidak valid: skema tanpa domain,'http://',ditolak,ditolak,LULUS,Tidak ditemukan nama domain pada input.
+B8,tidak valid: alamat IP tidak valid,'http://999.300.1.1/login',ditolak,ditolak,LULUS,Alamat IP tidak valid (tiap angka maksimal 255).
+B9,tidak valid: spasi di tengah,'http://exa mple.com/login',ditolak,ditolak,LULUS,URL tidak boleh mengandung spasi atau baris baru.
+B10,tidak valid: lebih dari 2000 karakter,'http://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa... (2111 karakter)',ditolak,ditolak,LULUS,URL terlalu panjang (maksimal 2000 karakter).
+B11,tidak valid: TLD tidak valid,'http://situs.c0m1',ditolak,ditolak,LULUS,Akhiran domain (TLD) tidak valid.
+C1,konsistensi,4 penulisan wikipedia.org (http/https/www/huruf besar),probabilitas sama,probabilitas sama,LULUS,nilai: [18.3]
+D1,halaman,GET /,200,200,LULUS,
+D2,halaman,POST / (form cek satu URL),True,True,LULUS,hasil tampil di halaman
+D3,halaman,POST / dengan tag <script>,True,True,LULUS,"input di-escape, tidak dijalankan"
+D4,cek banyak,"3 baris teks (1 aman, 1 phishing, 1 tidak valid)",True,True,LULUS,ringkasan 3 diperiksa + baris tidak valid
+D5,cek banyak,unggah CSV 2 baris dengan kolom 'url',True,True,LULUS,kolom url terbaca
+D6,cek banyak,unggah file .png,True,True,LULUS,ditolak dengan pesan
+D7,cek banyak,201 URL (melebihi batas),True,True,LULUS,ditolak dengan pesan
+D8,riwayat,GET /history setelah pengecekan,True,True,LULUS,pengecekan sebelumnya tercatat
+D9,info model,GET /model,200,200,LULUS,
