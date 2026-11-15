@@ -1,4 +1,4 @@
-# Cek URL Phishing - UAS Keamanan Data (DSF01), Kelompok 4
+# Cek URL-phising-detection
 
 Anggota: Jovanic Manuelo, Elvin Federic Aurelio, Agnes Aurelia
 
