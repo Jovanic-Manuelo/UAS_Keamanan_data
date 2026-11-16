@@ -1,14 +1,13 @@
-"""
-app.py - Aplikasi Flask "Cek URL Phishing" (UAS Keamanan Data, Kelompok 4).
+"""Aplikasi web Flask untuk memperkirakan risiko phishing dari teks URL.
 
-Menjalankan:
-    pip install -r requirements.txt
-    python app.py
-lalu buka http://127.0.0.1:5000
+Jalankan ``pip install -r requirements.txt`` lalu ``python app.py`` dan buka
+``http://127.0.0.1:5000``. Pipeline dan metadata model dimuat saat modul
+diimpor, sehingga kedua berkas model harus tersedia di folder ``model``.
 
-Alur satu pengecekan:
-    input URL -> validasi -> pipeline.joblib (normalisasi + fitur + model)
-              -> probabilitas phishing -> label, alasan, saran tindakan
+Alur pengecekan:
+    input -> validasi -> pipeline fitur/model -> penjelasan dan saran
+
+URL hanya dianalisis sebagai teks; aplikasi tidak mengunjungi alamat tersebut.
 """
 import csv
 import io
@@ -21,23 +20,27 @@ from pathlib import Path
 import joblib
 from flask import Flask, jsonify, render_template, request
 
-# features.py harus bisa di-import karena pipeline .joblib memakai kelas di dalamnya
-from features import (BRANDS, SUSPICIOUS_WORDS, extract_features, normalize_url,
+# Pipeline joblib merujuk ke URLFeatureExtractor yang didefinisikan di features.py.
+from features import (BRANDS, FEATURE_CONTRACT_VERSION, SUSPICIOUS_WORDS,
+                      extract_features, normalize_url, registered_domain,
                       split_url)
 
+# Lokasi aplikasi dan artefak model yang dibuat oleh proses training.
 BASE = Path(__file__).resolve().parent
 PIPELINE = joblib.load(BASE / "model" / "phishing_url_pipeline.joblib")
 META = json.loads((BASE / "model" / "metadata.json").read_text())
-THRESHOLD = float(META["threshold"])      # ambang yang dipilih dari data validasi
+THRESHOLD = float(META["threshold"])  # Ambang klasifikasi dari data validasi.
 
+# Batas input untuk mencegah permintaan individual atau batch terlalu besar.
 MAX_URL_LEN = 2000
 MAX_BATCH = 200
-LOW_CONF_MARGIN = 0.15                    # |prob - threshold| di bawah ini = keyakinan rendah
+LOW_CONF_MARGIN = 0.15  # Selisih probabilitas dari ambang yang dianggap kurang meyakinkan.
 
 app = Flask(__name__)
-app.config["MAX_CONTENT_LENGTH"] = 1 * 1024 * 1024   # batas upload 1 MB
-HISTORY = deque(maxlen=100)               # riwayat disimpan di memori selama aplikasi jalan
+app.config["MAX_CONTENT_LENGTH"] = 1 * 1024 * 1024  # Batas unggahan Flask: 1 MiB.
+HISTORY = deque(maxlen=100)  # Riwayat sementara; hilang saat proses aplikasi berhenti.
 
+# Regex untuk pemeriksaan skema, host, dan oktet alamat IPv4.
 _SCHEME_RE = re.compile(r"^([a-zA-Z][a-zA-Z0-9+.\-]*):")
 _HOST_RE = re.compile(r"^[a-z0-9]([a-z0-9\-_.]*[a-z0-9])?$")
 _IPV4_RE = re.compile(r"^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$")
@@ -47,7 +50,19 @@ _IPV4_RE = re.compile(r"^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$")
 # Validasi input
 # --------------------------------------------------------------------------
 def validate_url(raw):
-    """Kembalikan (url_bersih, None) jika valid, atau (None, pesan_error)."""
+    """Validasi bentuk URL tanpa mengirim permintaan jaringan.
+
+    Pemeriksaan meliputi input kosong/panjang/spasi, skema HTTP(S), host,
+    format domain, dan rentang oktet IPv4. URL tanpa skema juga dapat diterima
+    jika host memenuhi pemeriksaan.
+
+    Args:
+        raw: Nilai yang dikirim pengguna.
+
+    Returns:
+        Pasangan ``(url, None)`` jika diterima, atau ``(None, pesan)`` jika
+        ditolak. Nilai URL yang diterima adalah teks input yang telah di-trim.
+    """
     if raw is None:
         return None, "Input kosong. Ketik atau tempel sebuah URL."
     url = str(raw).strip()
@@ -67,7 +82,10 @@ def validate_url(raw):
         # contoh: javascript:alert(1), mailto:a@b.com
         return None, f"'{m.group(1)}:' bukan alamat web. Masukkan URL http/https."
 
-    host, port, _, _ = split_url(normalize_url(url))
+    try:
+        host, _, _, _ = split_url(normalize_url(url))
+    except ValueError:
+        return None, "Host atau nomor port pada URL tidak valid."
     if not host:
         return None, "Tidak ditemukan nama domain pada input."
     ip = _IPV4_RE.match(host)
@@ -89,10 +107,21 @@ def validate_url(raw):
 # Penjelasan hasil
 # --------------------------------------------------------------------------
 def explain(url, feats):
-    """Daftar ciri URL yang terlihat. Ini penjelasan bantu, dihitung dari fitur
-    yang sama dengan yang dipakai model, bukan isi internal model."""
+    """Susun sinyal risiko/aman yang mudah dipahami dari fitur URL.
+
+    Ini adalah penjelasan berbasis aturan atas ciri teks URL, bukan penjelasan
+    atas bobot atau keputusan internal model.
+
+    Args:
+        url: URL yang sudah lolos validasi.
+        feats: Dictionary fitur dari :func:`features.extract_features`.
+
+    Returns:
+        Tuple ``(risk_signals, safe_signals, note)``. Dua nilai pertama adalah
+        daftar pesan; ``note`` berisi catatan tambahan atau ``None``.
+    """
     norm = normalize_url(url).lower()
-    host, _, path, query = split_url(normalize_url(url))
+    host, _, path, _ = split_url(normalize_url(url))
     risk, safe = [], []
 
     if feats["has_ip"]:
@@ -101,8 +130,11 @@ def explain(url, feats):
     if words:
         risk.append("Mengandung kata yang sering dipakai halaman phishing: " + ", ".join(words[:6]) + ".")
     if feats["brand_outside_domain"]:
-        outside = (host.rsplit(".", 2)[0] if host.count(".") >= 2 else "") + " " + path.lower() + " " + query.lower()
-        brands = [b for b in BRANDS if b in outside]
+        domain = registered_domain(url)
+        subdomain = host[:-len(domain)].rstrip(".") if host.endswith(domain) else ""
+        domain_name = domain.split(".", 1)[0]
+        outside = subdomain + " " + path.lower()
+        brands = [b for b in BRANDS if b in outside and b not in domain_name.lower()]
         nama = ", ".join(brands[:3]) if brands else "merek terkenal"
         risk.append(f"Nama merek ({nama}) muncul di subdomain atau path, padahal domain utamanya bukan milik merek itu.")
     if feats["is_shortener"]:
@@ -146,6 +178,8 @@ def explain(url, feats):
     return risk, safe, note
 
 
+# Saran ditampilkan sesuai label; pada keyakinan rendah, saran uncertain
+# ditambahkan sebelum saran berdasarkan label prediksi.
 ADVICE = {
     "phishing": [
         "Jangan memasukkan kata sandi, OTP, PIN, atau data kartu di halaman ini.",
@@ -167,7 +201,21 @@ ADVICE = {
 
 
 def analyze(raw, save=True):
-    """Validasi + prediksi + penjelasan untuk satu URL."""
+    """Jalankan validasi dan analisis lengkap atas satu URL.
+
+    URL yang lolos validasi dikirim ke pipeline untuk memperoleh probabilitas,
+    lalu dipetakan ke label memakai :data:`THRESHOLD`. Penjelasan dan saran
+    dihitung dari fitur yang sama. Secara default ringkasan hasil disimpan
+    pada riwayat dalam memori.
+
+    Args:
+        raw: Input URL mentah.
+        save: Jika ``True``, tambahkan ringkasan hasil ke :data:`HISTORY`.
+
+    Returns:
+        Dictionary hasil dengan ``ok=False`` dan ``error`` jika input ditolak,
+        atau ``ok=True`` beserta label, probabilitas, sinyal, dan saran.
+    """
     url, err = validate_url(raw)
     shown = "" if raw is None else str(raw).strip()[:300]
     if err:
@@ -205,7 +253,22 @@ def analyze(raw, save=True):
 
 
 def read_batch_inputs(text, file_storage):
-    """Ambil daftar URL dari textarea (satu per baris) dan/atau file CSV/TXT."""
+    """Gabungkan URL dari textarea dan berkas CSV/TXT opsional.
+
+    Untuk CSV dengan kolom bernama ``url``, kolom itu yang dibaca; jika tidak
+    ada, kolom pertama digunakan. Berkas dibaca sebagai UTF-8 dengan dukungan
+    BOM. Header dibuang hanya jika kolom ``url`` ditemukan.
+
+    Args:
+        text: Isi textarea; setiap baris nonkosong dianggap satu URL.
+        file_storage: Objek berkas Flask opsional.
+
+    Returns:
+        Daftar URL yang tidak kosong, dengan urutan textarea lalu isi berkas.
+
+    Raises:
+        ValueError: Jika ekstensi berkas bukan CSV/TXT atau isinya bukan UTF-8.
+    """
     items = [ln.strip() for ln in (text or "").splitlines() if ln.strip()]
     if file_storage and file_storage.filename:
         name = file_storage.filename.lower()
@@ -230,12 +293,19 @@ def read_batch_inputs(text, file_storage):
 # --------------------------------------------------------------------------
 @app.route("/", methods=["GET", "POST"])
 def index():
+    """Tampilkan halaman utama; proses URL hanya pada permintaan POST."""
     result = analyze(request.form.get("url")) if request.method == "POST" else None
     return render_template("index.html", result=result, active="index")
 
 
 @app.route("/batch", methods=["GET", "POST"])
 def batch():
+    """Tampilkan form pemeriksaan batch dan proses input saat POST.
+
+    Input gabungan dibatasi oleh :data:`MAX_BATCH`. Hasil tiap baris dapat
+    berhasil diprediksi atau ditolak secara individual; halaman juga menerima
+    ringkasan jumlah phishing, legitimate, dan input tidak valid.
+    """
     results, error, summary = None, None, None
     text = request.form.get("urls", "")
     if request.method == "POST":
@@ -261,23 +331,31 @@ def batch():
 
 @app.route("/history")
 def history():
+    """Tampilkan ringkasan pemeriksaan yang tersimpan di memori."""
     return render_template("history.html", history=list(HISTORY), active="history")
 
 
 @app.route("/history/clear", methods=["POST"])
 def history_clear():
+    """Hapus seluruh riwayat sementara dan tampilkan halaman riwayat kosong."""
     HISTORY.clear()
     return render_template("history.html", history=[], active="history")
 
 
 @app.route("/model")
 def model_info():
+    """Tampilkan metadata model yang dibaca dari berkas metadata."""
     return render_template("model.html", meta=META, active="model")
 
 
 @app.route("/api/predict", methods=["POST"])
 def api_predict():
-    """Endpoint JSON kecil, berguna untuk pengujian otomatis."""
+    """Prediksi satu URL dari JSON dan kembalikan hasil dalam format JSON.
+
+    Input yang tidak lolos validasi menghasilkan status HTTP 400. Endpoint ini
+    tidak menambahkan hasil ke riwayat agar permintaan pengujian tidak
+    mengubah state aplikasi.
+    """
     data = request.get_json(silent=True) or {}
     res = analyze(data.get("url"), save=False)
     return jsonify(res), (200 if res["ok"] else 400)
@@ -285,9 +363,11 @@ def api_predict():
 
 @app.errorhandler(413)
 def too_large(_):
+    """Tampilkan pesan unggahan terlalu besar untuk HTTP 413."""
     return render_template("batch.html", results=None, summary=None, text="", max_batch=MAX_BATCH,
                            error="File terlalu besar (maksimal 1 MB).", active="batch"), 413
 
 
 if __name__ == "__main__":
+    # Batasi server pengembangan ke loopback; debug dinonaktifkan.
     app.run(host="127.0.0.1", port=5000, debug=False)

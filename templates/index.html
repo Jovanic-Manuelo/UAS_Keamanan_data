@@ -37,7 +37,7 @@
     <div class="meter-fill" style="width: {{ result.percent }}%"></div>
     <div class="meter-mark" style="left: {{ (result.threshold * 100)|round(0) }}%"></div>
   </div>
-  <p class="muted small">Garis menandai ambang keputusan {{ (result.threshold * 100)|round(0)|int }}%. Di atas ambang, URL dianggap phishing.</p>
+  <p class="muted small">Garis menandai ambang keputusan {{ (result.threshold * 100)|round(0)|int }}%. Pada atau di atas ambang, URL dianggap phishing.</p>
 
   {% if result.note %}<p class="note">{{ result.note }}</p>{% endif %}
 

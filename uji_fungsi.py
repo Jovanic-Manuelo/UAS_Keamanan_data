@@ -1,33 +1,50 @@
-"""
-uji_fungsi.py - Uji fungsi aplikasi Flask (bukan evaluasi model).
+"""Uji integrasi fungsi web Flask melalui test client lokal.
 
-Menjalankan:  python uji_fungsi.py
-Hasil dicetak ke layar dan disimpan ke hasil_uji_fungsi.csv (untuk tabel di laporan).
+Jalankan ``python uji_fungsi.py`` setelah artefak model dan dependensi aplikasi
+tersedia. Skrip menguji endpoint dan alur UI, mencetak status setiap kasus,
+serta menulis hasilnya ke ``hasil_uji_fungsi.csv`` di direktori kerja saat ini.
+Skrip ini bukan evaluasi akurasi ilmiah model dan tidak membuka URL: alamat
+simulasi hanya dikirim sebagai teks ke test client Flask.
 
-Catatan keamanan: URL "ancaman" di bawah adalah URL SIMULASI buatan sendiri yang
-meniru pola phishing. Tidak ada URL yang dibuka; aplikasi hanya membaca teksnya.
+Kasus dibagi menjadi input valid, input yang harus ditolak, konsistensi
+normalisasi, serta halaman dan fitur aplikasi. Kasus dijalankan pada tingkat
+modul, sehingga mengimpor skrip ini juga menjalankan seluruh rangkaian tes dan
+menulis berkas CSV.
 """
 import csv
 import io
 
 from app import MAX_BATCH, app
 
+# Test client menjalankan route Flask tanpa membuka server atau port jaringan.
 client = app.test_client()
+# Baris laporan yang nantinya ditulis ke CSV.
 rows = []
 
 
 def catat(no, kelompok, masukan, harapan, aktual, ket=""):
+    """Tambahkan satu hasil perbandingan ke laporan pengujian.
+
+    ``harapan`` dan ``aktual`` dibandingkan langsung; hasil kesamaan dicatat
+    sebagai ``LULUS``, selain itu ``GAGAL``.
+    """
     status = "LULUS" if harapan == aktual else "GAGAL"
     rows.append([no, kelompok, masukan, harapan, aktual, status, ket])
 
 
 def prediksi(url):
+    """Kirim URL ke endpoint prediksi dan sederhanakan hasil respons.
+
+    Returns:
+        ``(label, persen)`` untuk prediksi berhasil atau
+        ``("ditolak", pesan_error)`` untuk input yang tidak valid.
+    """
     r = client.post("/api/predict", json={"url": url})
     d = r.get_json()
     return (d["label"], d["percent"]) if d["ok"] else ("ditolak", d["error"])
 
 
-# ---------- A. Input valid: kelas aman dan kelas ancaman ----------
+# A. Contoh URL simulasi yang diharapkan masuk kelas legitimate atau phishing.
 VALID = [
     ("https://www.wikipedia.org/", "legitimate"),
     ("https://en.wikipedia.org/wiki/Phishing", "legitimate"),
@@ -48,7 +65,7 @@ for i, (url, harapan) in enumerate(VALID, 1):
     label, info = prediksi(url)
     catat(f"A{i}", "input valid", url, harapan, label, f"prob. phishing {info}%" if label != "ditolak" else info)
 
-# ---------- B. Input tidak valid: harus ditolak dengan pesan, bukan diprediksi ----------
+# B. Input dengan skema, host, atau isi tidak valid yang harus ditolak.
 INVALID = [
     ("", "kosong"),
     ("     ", "hanya spasi"),
@@ -58,6 +75,8 @@ INVALID = [
     ("javascript:alert(1)", "skema javascript"),
     ("http://", "skema tanpa domain"),
     ("http://999.300.1.1/login", "alamat IP tidak valid"),
+    ("http://example.com:abc/login", "port bukan angka"),
+    ("http://example.com:65536/login", "port di luar rentang"),
     ("http://exa mple.com/login", "spasi di tengah"),
     ("http://" + "a" * 2100 + ".com", "lebih dari 2000 karakter"),
     ("http://situs.c0m1", "TLD tidak valid"),
@@ -67,13 +86,13 @@ for i, (url, jenis) in enumerate(INVALID, 1):
     tampil = url if len(url) < 60 else url[:40] + f"... ({len(url)} karakter)"
     catat(f"B{i}", f"tidak valid: {jenis}", repr(tampil), "ditolak", label, info if label == "ditolak" else f"prob. {info}%")
 
-# ---------- C. Konsistensi preprocessing ----------
+# C. Variasi skema, www, dan kapitalisasi harus menghasilkan probabilitas sama.
 varian = ["https://www.wikipedia.org/", "http://wikipedia.org", "wikipedia.org", "WWW.Wikipedia.org/"]
 probs = {prediksi(v)[1] for v in varian}
 catat("C1", "konsistensi", "4 penulisan wikipedia.org (http/https/www/huruf besar)", "probabilitas sama",
       "probabilitas sama" if len(probs) == 1 else "berbeda", f"nilai: {sorted(probs)}")
 
-# ---------- D. Halaman dan fitur aplikasi ----------
+# D. Periksa halaman, riwayat, unggahan, batas batch, dan escaping input.
 r = client.get("/")
 catat("D1", "halaman", "GET /", 200, r.status_code)
 r = client.post("/", data={"url": "http://klikbca-verifikasi.xyz/login.php"})
@@ -104,12 +123,13 @@ catat("D8", "riwayat", "GET /history setelah pengecekan", True, "klikbca-verifik
 r = client.get("/model")
 catat("D9", "info model", "GET /model", 200, r.status_code)
 
-# ---------- Keluaran ----------
+# Tulis laporan lengkap agar hasil dapat ditinjau atau dipakai dalam tabel.
 with open("hasil_uji_fungsi.csv", "w", newline="", encoding="utf-8") as f:
     w = csv.writer(f)
     w.writerow(["no", "kelompok", "input", "hasil_diharapkan", "hasil_aktual", "status", "keterangan"])
     w.writerows(rows)
 
+# Cetak ringkasan per kasus dan jumlah keseluruhan ke terminal.
 for r in rows:
     print(f"{r[0]:<4}{r[5]:<6} {str(r[2])[:62]:<63} harap={r[3]} | aktual={r[4]} | {r[6]}")
 lulus = sum(r[5] == "LULUS" for r in rows)
