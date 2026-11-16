@@ -11,6 +11,7 @@ URL hanya dianalisis sebagai teks; aplikasi tidak mengunjungi alamat tersebut.
 """
 import csv
 import io
+import ipaddress
 import json
 import re
 from collections import deque
@@ -88,6 +89,16 @@ def validate_url(raw):
         return None, "Host atau nomor port pada URL tidak valid."
     if not host:
         return None, "Tidak ditemukan nama domain pada input."
+
+    # urlsplit (melalui split_url) menghapus tanda kurung siku dari hostname.
+    # Karena itu validasi alamat IPv6 dilakukan terhadap host yang sudah diparsing.
+    if ":" in host:
+        try:
+            ipaddress.IPv6Address(host)
+        except ValueError:
+            return None, "Alamat IPv6 tidak valid. Gunakan format IPv6 dalam tanda kurung siku."
+        return url, None
+
     ip = _IPV4_RE.match(host)
     if ip:
         if any(int(o) > 255 for o in ip.groups()):
